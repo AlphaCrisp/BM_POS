@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- Content Security Policy untuk Electron -->
+  <meta http-equiv="Content-Security-Policy" 
+        content="default-src 'self' 'unsafe-inline' http://127.0.0.1:3000 http://localhost:3000 data:; img-src 'self' data:; style-src 'self' 'unsafe-inline';">
+  <title>Portal Admin - Toko Bahan Kue</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --border: #e2e8f0;
+      --primary: #0f172a;
+      --accent: #2563eb;
+      --success: #16a34a;
+      --warning: #d97706;
+      --danger: #dc2626;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--primary); display: flex; flex-direction: column; min-height: 100vh; }
+
+    /* Navigasi Atas */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .nav-links { display: flex; gap: 8px; }
+    .nav-btn {
+      padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border);
+      background: transparent; font-weight: 600; font-size: 13px; cursor: pointer;
+    }
+    .nav-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+    main { padding: 24px; max-width: 1200px; margin: 0 auto; width: 100%; flex: 1; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Kartu Ringkasan */
+    .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
+    .card-title { font-size: 12px; font-weight: 600; text-transform: uppercase; color: #64748b; margin-bottom: 6px; }
+    .card-value { font-size: 24px; font-weight: 800; }
+
+    /* Tabel Data */
+    .data-table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 8px; overflow: hidden; border: 1px solid var(--border); margin-top: 12px; }
+    .data-table th, .data-table td { padding: 10px 14px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--border); }
+    .data-table th { background: #f1f5f9; font-weight: 600; color: #475569; }
+    .cost-highlight { font-weight: 700; color: var(--warning); }
+
+    /* Panel Formulir */
+    .form-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 24px; }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-top: 12px; }
+    .form-group label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; margin-bottom: 4px; }
+    .form-group input, .form-group select { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border); font-size: 13px; }
+    .btn-submit { background: var(--accent); color: white; border: none; padding: 10px 18px; font-weight: 700; border-radius: 6px; cursor: pointer; margin-top: 14px; }
+
+    /* Dua Amplop Alokasi Kas */
+    .envelope-box { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 18px 0; }
+    .envelope-card { border-radius: 8px; padding: 16px; border: 2px dashed; }
+    .env-reorder { border-color: var(--warning); background: #fffbeb; }
+    .env-profit { border-color: var(--success); background: #f0fdf4; }
+
+    /* Kotak Cadangan Database */
+    .backup-banner { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 18px; margin-top: 24px; display: flex; justify-content: space-between; align-items: center; }
+
+    /* Modal Verifikasi Akses Admin */
+    #adminLock {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: #0f172a; display: flex; justify-content: center; align-items: center; z-index: 1000;
+    }
+    .lock-box { background: white; padding: 30px; border-radius: 10px; width: 320px; text-align: center; }
+  </style>
+</head>
+<body>
+
+  <!-- MODAL VERIFIKASI KEAMANAN ADMIN -->
+  <div id="adminLock">
+    <div class="lock-box">
+      <h2 style="margin-bottom: 8px;">Verifikasi Admin</h2>
+      <p style="font-size: 12px; color: #64748b; margin-bottom: 16px;">Masukkan nama pengguna &amp; kata sandi pemilik</p>
+      <input type="text" id="verifyUser" placeholder="Username (admin)" style="width: 100%; padding: 8px; margin-bottom: 8px; border: 1px solid #ccc; border-radius: 4px;">
+      <input type="password" id="verifyPass" placeholder="Kata Sandi / PIN" style="width: 100%; padding: 8px; margin-bottom: 14px; border: 1px solid #ccc; border-radius: 4px;">
+      <button onclick="verifyAdmin()" class="btn-submit" style="width: 100%; margin-top: 0;">Buka Portal</button>
+      <div style="margin-top: 12px;"><a href="index.html" style="font-size: 12px; color: #64748b; text-decoration: none;">← Kembali ke Kasir POS</a></div>
+    </div>
+  </div>
+
+  <header>
+    <div>
+      <strong>Portal Pemilik Toko</strong> 
+      <span style="font-size: 11px; background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 12px; font-weight: bold; margin-left: 6px;">MODE OWNER</span>
+    </div>
+    <div class="nav-links">
+      <button class="nav-btn active" onclick="showTab('tabFin', this)">Laporan Keuangan &amp; Laba</button>
+      <button class="nav-btn" onclick="showTab('tabEod', this)">Rekap Kas Harian &amp; Cadangan</button>
+      <button class="nav-btn" onclick="showTab('tabProd', this)">Kelola Produk &amp; HPP</button>
+      <button class="nav-btn" onclick="showTab('tabEmp', this)">Data Karyawan</button>
+      <a href="index.html" class="nav-btn" style="text-decoration: none; color: inherit;">Buka Kasir POS ↗</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- TAB 1: LAPORAN KEUANGAN & LABA -->
+    <section id="tabFin" class="tab-content active">
+      <h2 style="margin-bottom: 16px;">Performa Penjualan Hari Ini</h2>
+      <div class="metric-grid">
+        <div class="card">
+          <div class="card-title">Total Penjualan Kotor (Omzet)</div>
+          <div class="card-value" id="todayGross">Rp 0</div>
+          <span style="font-size: 12px; color: #64748b;" id="todayReceipts">0 transaksi</span>
+        </div>
+        <div class="card">
+          <div class="card-title">Dana Kulakan (Cadangan HPP)</div>
+          <div class="card-value" id="todayCogs" style="color: var(--warning);">Rp 0</div>
+          <span style="font-size: 12px; color: #64748b;">Wajib diputar untuk belanja stok</span>
+        </div>
+        <div class="card">
+          <div class="card-title">Laba Bersih Realistis</div>
+          <div class="card-value" id="todayProfit" style="color: var(--success);">Rp 0</div>
+          <span style="font-size: 12px; color: #64748b;" id="todayMargin">Margin Laba: 0%</span>
+        </div>
+      </div>
+
+      <h3 style="margin-top: 24px; margin-bottom: 8px;">Riwayat Transaksi Penjualan Terakhir</h3>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>No. Nota</th>
+            <th>Kasir</th>
+            <th>Waktu</th>
+            <th>Total Belanja</th>
+            <th>HPP Kulakan</th>
+            <th>Laba Bersih</th>
+            <th>Metode Bayar</th>
+          </tr>
+        </thead>
+        <tbody id="salesTableBody"></tbody>
+      </table>
+    </section>
+
+    <!-- TAB 2: REKAP KAS HARIAN & CADANGAN DATABASE -->
+    <section id="tabEod" class="tab-content">
+      <h2>Rekapitulasi Kas Laci (Tutup Buku Kasir)</h2>
+      <p style="font-size: 13px; color: #64748b; margin-top: 4px; margin-bottom: 16px;">
+        Cocokkan uang fisik di laci dengan sistem dan amankan alokasi uang kulakan sebelum toko tutup.
+      </p>
+
+      <div class="form-panel">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+          <div class="form-group">
+            <label>Modal Kas Awal / Uang Receh:</label>
+            <input type="number" id="eodFloat" value="100000" oninput="calculateEOD()">
+            <small style="color: #64748b;">Kas kecil awal di laci register</small>
+          </div>
+          <div class="form-group">
+            <label>Penjualan Tunai Hari Ini:</label>
+            <input type="text" id="eodCashSales" readonly style="background: #f1f5f9; font-weight: bold;">
+          </div>
+          <div class="form-group">
+            <label>Total Kas yang Seharusnya di Laci:</label>
+            <input type="text" id="eodExpected" readonly style="background: #f1f5f9; font-weight: 800; color: var(--accent);">
+            <small style="color: #64748b;">Kas Awal + Penjualan Tunai</small>
+          </div>
+          <div class="form-group">
+            <label>Uang Fisik Dihitung (Riil):</label>
+            <input type="number" id="eodCounted" placeholder="Hitung uang lembar &amp; koin" oninput="calculateEOD()" style="font-size: 16px; font-weight: 700;">
+          </div>
+        </div>
+
+        <!-- Banner Selisih Kas -->
+        <div id="discrepancyBox" style="margin-top: 14px; padding: 12px; border-radius: 6px; font-weight: bold; display: none;"></div>
+
+        <!-- Dua Amplop Alokasi Kas -->
+        <div class="envelope-box">
+          <div class="envelope-card env-reorder">
+            <div style="font-size: 12px; font-weight: 700; color: var(--warning); text-transform: uppercase;">📦 Amplop Kulakan (JANGAN DIGUNAKAN)</div>
+            <div style="font-size: 24px; font-weight: 800; margin: 6px 0;" id="envCogs">Rp 0</div>
+            <div style="font-size: 12px; color: #64748b;">Simpan atau setor ke rekening supplier untuk membeli kembali tepung, mentega, dan kemasan yang terjual.</div>
+          </div>
+          <div class="envelope-card env-profit">
+            <div style="font-size: 12px; font-weight: 700; color: var(--success); text-transform: uppercase;">💰 Amplop Laba Bersih</div>
+            <div style="font-size: 24px; font-weight: 800; margin: 6px 0;" id="envProfit">Rp 0</div>
+            <div style="font-size: 12px; color: #64748b;">Murni keuntungan bersih toko hari ini setelah seluruh modal kulakan barang sudah diamankan.</div>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button class="btn-submit" onclick="submitEOD()" style="background: var(--success);">✔ Kunci &amp; Simpan Rekap Harian</button>
+        </div>
+      </div>
+
+      <!-- Cadangkan Database Lokal / USB -->
+      <div class="backup-banner">
+        <div>
+          <h3 style="font-size: 16px; margin-bottom: 4px;">Cadangkan Database ke Flashdisk / Drive</h3>
+          <p style="font-size: 13px; color: #475569;">Ekspor salinan aman database <code>bakery.db</code> langsung ke folder cadangan atau USB flashdisk tanpa mematikan aplikasi.</p>
+          <div id="backupStatus" style="font-size: 12px; font-weight: bold; margin-top: 6px; color: var(--accent);"></div>
+        </div>
+        <button class="btn-submit" onclick="executeBackup()" style="margin-top: 0; background: var(--primary);">💾 Cadangkan Database Sekarang</button>
+      </div>
+
+      <h3 style="margin-top: 28px; margin-bottom: 8px;">Riwayat Rekap Kas Harian (Laporan Z)</h3>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Tanggal</th>
+            <th>Kas Awal</th>
+            <th>Penjualan Tunai</th>
+            <th>Fisik Dihitung</th>
+            <th>Selisih (+/-)</th>
+            <th>Dana Kulakan</th>
+            <th>Laba Bersih</th>
+            <th>Ditutup Oleh</th>
+          </tr>
+        </thead>
+        <tbody id="eodTableBody"></tbody>
+      </table>
+    </section>
+
+    <!-- TAB 3: KELOLA PRODUK & HARGA MODAL (HPP) -->
+    <section id="tabProd" class="tab-content">
+      <div class="form-panel">
+        <h3>Tambah Barang / Bahan Kue Baru</h3>
+        <form id="productForm" onsubmit="saveProduct(event)">
+          <div class="form-grid">
+            <div class="form-group"><label>Barcode / Kode Barang</label><input type="text" id="pBarcode" placeholder="Scan atau ketik barcode"></div>
+            <div class="form-group"><label>Nama Barang / Bahan</label><input type="text" id="pName" required placeholder="cth: Cakra Kembar 1kg"></div>
+            <div class="form-group"><label>Kategori</label><input type="text" id="pCategory" placeholder="Tepung, Mentega, Coklat"></div>
+            <div class="form-group"><label>Satuan Kemasan</label><input type="text" id="pUnit" required placeholder="cth: 1kg, 500g, pak"></div>
+            
+            <div class="form-group">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label style="margin-bottom: 0;">Harga Modal (HPP)</label>
+                <button type="button" onclick="openBulkCalcModal('pCost', 'pStock')" style="background: none; border: none; font-size: 11px; font-weight: bold; color: var(--accent); cursor: pointer; text-decoration: underline;">
+                  ⚖️ Hitung dari Dus/Karung
+                </button>
+              </div>
+              <input type="number" id="pCost" required placeholder="cth: 12000">
+            </div>
+
+            <div class="form-group"><label>Harga Jual Eceran (Umum)</label><input type="number" id="pSell" required placeholder="cth: 15000"></div>
+            <div class="form-group"><label>Harga Tier 1 (Pelanggan Tetap)</label><input type="number" id="pT1" placeholder="cth: 14500"></div>
+            <div class="form-group"><label>Harga Tier 2 (Usaha Bakery)</label><input type="number" id="pT2" placeholder="cth: 14000"></div>
+            <div class="form-group"><label>Harga Tier 3 (Grosir Partai)</label><input type="number" id="pT3" placeholder="cth: 13500"></div>
+            <div class="form-group"><label>Jumlah Stok Awal</label><input type="number" id="pStock" value="0"></div>
+          </div>
+          <button type="submit" class="btn-submit">+ Simpan Barang ke Katalog</button>
+        </form>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; margin-bottom: 8px;">
+        <h3>Daftar Master Stok &amp; HPP Barang</h3>
+        <input type="text" id="adminSearchInput" placeholder="Cari nama barang, kategori, atau barcode..." oninput="filterAdminProducts()" style="padding: 6px 12px; font-size: 13px; border-radius: 6px; border: 1px solid var(--border); width: 320px;">
+      </div>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Barang &amp; Barcode</th>
+            <th>Kategori</th>
+            <th>Satuan</th>
+            <th>HPP Kulakan</th>
+            <th>Harga Eceran</th>
+            <th>Tier 1</th>
+            <th>Tier 2</th>
+            <th>Tier 3</th>
+            <th>Jumlah Stok</th>
+            <th>Tindakan</th>
+          </tr>
+        </thead>
+        <tbody id="productsTableBody"></tbody>
+      </table>
+    </section>
+
+    <!-- TAB 4: KELOLA KARYAWAN & STAF -->
+    <section id="tabEmp" class="tab-content">
+      <div class="form-panel">
+        <h3>Buat Akun Kasir / Staf Baru</h3>
+        <form id="empForm" onsubmit="saveEmployee(event)">
+          <div class="form-grid">
+            <div class="form-group"><label>Nama Lengkap Staf</label><input type="text" id="eName" required placeholder="cth: Sarah Bakery"></div>
+            <div class="form-group"><label>Username</label><input type="text" id="eUser" required placeholder="cth: sarah"></div>
+            <div class="form-group"><label>Kata Sandi</label><input type="password" id="ePass" required placeholder="Kata sandi akun"></div>
+            <div class="form-group"><label>PIN Cepat Kasir (4-6 Angka)</label><input type="text" maxlength="6" id="ePin" placeholder="cth: 1234"></div>
+            <div class="form-group">
+              <label>Peran / Hak Akses</label>
+              <select id="eRole">
+                <option value="CASHIER">KASIR (Hanya Register, HPP &amp; Laba Tersembunyi)</option>
+                <option value="ADMIN">ADMIN (Akses Penuh Owner)</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" class="btn-submit">+ Buat Akun Karyawan</button>
+        </form>
+      </div>
+
+      <h3>Daftar Akun Karyawan</h3>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nama Lengkap</th>
+            <th>Username</th>
+            <th>Peran</th>
+            <th>PIN Kasir</th>
+            <th>Tanggal Dibuat</th>
+          </tr>
+        </thead>
+        <tbody id="empTableBody"></tbody>
+      </table>
+      <h3 style="margin-top: 36px; margin-bottom: 8px; color: #475569;">📋 Riwayat Retur Barang Keluar</h3>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Tanggal</th>
+            <th>Barang</th>
+            <th>Jumlah Diretur</th>
+            <th>Alasan Retur</th>
+            <th>Keterangan</th>
+            <th>Diproses Oleh</th>
+          </tr>
+        </thead>
+        <tbody id="returnsTableBody"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <!-- MODAL: UBAH DATA PRODUK -->
+  <div id="editProductModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(2px); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: white; padding: 24px; border-radius: 10px; width: 500px; max-width: 90%; max-height: 90vh; overflow-y: auto;">
+      <h3 style="margin-bottom: 14px;">Ubah Data Bahan Kue</h3>
+      <input type="hidden" id="editPId">
+      <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div class="form-group" style="grid-column: span 2;"><label>Nama Barang / Bahan</label><input type="text" id="editPName" required></div>
+        <div class="form-group"><label>Barcode / Kode</label><input type="text" id="editPBarcode"></div>
+        <div class="form-group"><label>Kategori</label><input type="text" id="editPCategory"></div>
+        <div class="form-group"><label>Satuan</label><input type="text" id="editPUnit" required></div>
+        <div class="form-group"><label>Batas Alarm Stok Menipis</label><input type="number" id="editPMinAlert"></div>
+        
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <label style="margin-bottom: 0;">Harga Modal (HPP)</label>
+            <button type="button" onclick="openBulkCalcModal('editPCost', null)" style="background: none; border: none; font-size: 11px; font-weight: bold; color: var(--accent); cursor: pointer; text-decoration: underline;">
+              ⚖️ Hitung dari Karung
+            </button>
+          </div>
+          <input type="number" id="editPCost" required>
+        </div>
+
+        <div class="form-group"><label>Harga Jual Eceran</label><input type="number" id="editPSell" required></div>
+        <div class="form-group"><label>Harga Tier 1</label><input type="number" id="editPT1"></div>
+        <div class="form-group"><label>Harga Tier 2</label><input type="number" id="editPT2"></div>
+        <div class="form-group" style="grid-column: span 2;"><label>Harga Tier 3</label><input type="number" id="editPT3"></div>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px;">
+        <button type="button" onclick="closeEditModal()" style="padding: 8px 14px; border: 1px solid var(--border); background: white; border-radius: 6px; cursor: pointer;">Batal</button>
+        <button type="button" onclick="submitEditProduct()" class="btn-submit" style="margin-top: 0;">Simpan Perubahan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: PENYESUAIAN STOK -->
+  <div id="adjustStockModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(2px); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: white; padding: 24px; border-radius: 10px; width: 380px;">
+      <h3 id="adjustTitle">Penyesuaian Stok Barang</h3>
+      <p id="adjustCurrentStock" style="font-size: 13px; color: #64748b; margin: 6px 0 14px 0;"></p>
+      <input type="hidden" id="adjustPId">
+      
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label>Jenis Penyesuaian</label>
+        <select id="adjustType" onchange="updateAdjustPlaceholder()">
+          <option value="RESTOCK">+ Masuk Barang Kulakan dari Supplier</option>
+          <option value="SPOILAGE">- Barang Rusak / Kadaluarsa / Kemasan Bocor</option>
+          <option value="CORRECTION">Koreksi Selisih Stok Fisik (Opname)</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label id="adjustQtyLabel">Jumlah Barang Masuk (+):</label>
+        <input type="number" id="adjustQty" min="1" placeholder="cth: 10" style="font-size: 16px; font-weight: bold;">
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px;">
+        <button type="button" onclick="closeAdjustModal()" style="padding: 8px 14px; border: 1px solid var(--border); background: white; border-radius: 6px; cursor: pointer;">Batal</button>
+        <button type="button" onclick="submitStockAdjustment()" class="btn-submit" style="margin-top: 0; background: var(--primary);">Terapkan Perubahan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: KALKULATOR PECAH KARUNG / DUS KE ECERAN -->
+  <div id="bulkCalcModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(2px); z-index: 1100; justify-content: center; align-items: center;">
+    <div style="background: white; padding: 24px; border-radius: 10px; width: 440px; max-width: 95%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h3 style="font-size: 16px;">⚖️ Kalkulator Pecah Karung / Dus</h3>
+        <button onclick="closeBulkCalcModal()" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #64748b;">✕</button>
+      </div>
+      
+      <p style="font-size: 12px; color: #64748b; margin-bottom: 14px;">
+        Hitung otomatis harga modal per bungkus eceran dari total nota belanja sak/karung (cth: Rp 475.000 / 15 kg).
+      </p>
+
+      <input type="hidden" id="calcTargetCostInput">
+      <input type="hidden" id="calcTargetStockInput">
+
+      <div class="form-group" style="margin-bottom: 10px;">
+        <label>1. Total Harga Beli Karung/Dus (Nota Kulakan):</label>
+        <input type="number" id="calcBulkCost" placeholder="cth: 475000" oninput="runBulkCalc()" style="font-size: 15px; font-weight: 700;">
+      </div>
+
+      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px; margin-bottom: 10px;">
+        <div class="form-group">
+          <label>2. Berat / Isi Total Karung/Dus:</label>
+          <input type="number" id="calcBulkQty" placeholder="cth: 15" oninput="runBulkCalc()">
+        </div>
+        <div class="form-group">
+          <label>Satuan:</label>
+          <select id="calcBulkUnit" onchange="runBulkCalc()">
+            <option value="kg">kg (Kilogram)</option>
+            <option value="g">gram</option>
+            <option value="L">liter</option>
+            <option value="ml">ml</option>
+            <option value="pcs">pcs / sachet</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px; margin-bottom: 14px;">
+        <div class="form-group">
+          <label>3. Ukuran Kemasan Eceran yang Dijual:</label>
+          <input type="number" id="calcRetailQty" value="1" placeholder="cth: 1 (atau 500)" oninput="runBulkCalc()">
+        </div>
+        <div class="form-group">
+          <label>Satuan:</label>
+          <select id="calcRetailUnit" onchange="runBulkCalc()">
+            <option value="kg">kg (Kilogram)</option>
+            <option value="g">gram</option>
+            <option value="L">liter</option>
+            <option value="ml">ml</option>
+            <option value="pcs">pcs</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 14px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+          <span style="font-size: 12px; color: #475569;">Bungkus Eceran yang Dihasilkan:</span>
+          <strong id="calcYieldDisplay" style="color: var(--accent);">0 bungkus</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <span style="font-size: 13px; font-weight: 600;">HPP Modal per Bungkus Eceran:</span>
+          <strong id="calcUnitCostDisplay" style="font-size: 20px; color: var(--warning);">Rp 0</strong>
+        </div>
+      </div>
+
+      <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 10px; margin-bottom: 14px; font-size: 12px;">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" id="calcAutoFillStock" checked>
+          <span>Isi otomatis Stok Awal dengan total bungkus yang didapat</span>
+        </label>
+        <div style="margin-top: 6px; display: flex; align-items: center; gap: 6px;">
+          <span>Jumlah karung/dus yang dibeli:</span>
+          <input type="number" id="calcBulkSacksCount" value="1" min="1" oninput="runBulkCalc()" style="width: 60px; padding: 2px 6px;">
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" onclick="closeBulkCalcModal()" style="padding: 8px 14px; border: 1px solid var(--border); background: white; border-radius: 6px; cursor: pointer;">Batal</button>
+        <button type="button" onclick="applyBulkCalc()" class="btn-submit" style="margin-top: 0; background: var(--accent);">✔ Pasang Harga Modal ke Form</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: RETUR BARANG -->
+  <div id="returnProductModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(2px); z-index: 1050; justify-content: center; align-items: center;">
+    <div style="background: white; padding: 24px; border-radius: 10px; width: 420px; max-width: 95%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h3 style="color: var(--danger);">↩️ Retur Barang (Kurangi Stok)</h3>
+        <button onclick="closeReturnModal()" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #64748b;">✕</button>
+      </div>
+
+      <p style="font-size: 13px; color: #475569; margin-bottom: 12px;" id="returnProductInfo">
+        Pilih produk yang akan diretur.
+      </p>
+
+      <input type="hidden" id="returnProductId">
+
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label>Jumlah yang Diretur (Mengurangi Stok Fisik):</label>
+        <input type="number" id="returnQty" min="1" placeholder="cth: 2" style="font-size: 16px; font-weight: bold; border-color: var(--danger);">
+      </div>
+
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label>Alasan Retur:</label>
+        <select id="returnReason">
+          <option value="Retur ke Supplier (Salah Kirim / Cacat)">Retur ke Supplier (Salah Kirim / Cacat)</option>
+          <option value="Kemasan Rusak / Bocor Saat Diterima">Kemasan Rusak / Bocor Saat Diterima</option>
+          <option value="Barang Kadaluarsa / Menjelang Expired">Barang Kadaluarsa / Menjelang Expired</option>
+          <option value="Kualitas Menurun (Gumpal / Bau Apek)">Kualitas Menurun (Gumpal / Bau Apek)</option>
+          <option value="Lainnya">Lainnya</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label>Catatan / Keterangan Tambahan:</label>
+        <input type="text" id="returnNotes" placeholder="cth: Dikembalikan ke kurir PT Bogasari / No Faktur: 1234">
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" onclick="closeReturnModal()" style="padding: 8px 14px; border: 1px solid var(--border); background: white; border-radius: 6px; cursor: pointer;">Batal</button>
+        <button type="button" onclick="submitProductReturn()" class="btn-submit" style="margin-top: 0; background: var(--danger);">Potong Stok &amp; Simpan Retur</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let eodData = null;
+    let allProducts = [];
+    let calculatedUnitCost = 0;
+    let calculatedTotalStockPacks = 0;
+
+    // Helper Format Rupiah
+    function formatRp(amount) {
+      return 'Rp ' + Math.round(Number(amount) || 0).toLocaleString('id-ID');
+    }
+
+    // PENGGANTI ALERT(): Toast notification tanpa membekukan fokus keyboard OS Windows
+    function showToast(message, isError = false) {
+      let toast = document.getElementById('adminToast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'adminToast';
+        toast.style.cssText = `
+          position: fixed;
+          bottom: 24px;
+          right: 24px;
+          padding: 12px 20px;
+          border-radius: 8px;
+          color: white;
+          font-size: 13px;
+          font-weight: 700;
+          z-index: 999999;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+          transition: all 0.25s ease;
+        `;
+        document.body.appendChild(toast);
+      }
+
+      toast.style.background = isError ? '#ef4444' : '#10b981';
+      toast.innerText = message;
+      toast.style.display = 'block';
+      toast.style.opacity = '1';
+      toast.style.transform = 'translateY(0)';
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        setTimeout(() => { toast.style.display = 'none'; }, 250);
+      }, 2500);
+    }
+
+    // 1. Verifikasi Admin
+    async function verifyAdmin() {
+      const u = document.getElementById('verifyUser').value.trim();
+      const p = document.getElementById('verifyPass').value.trim();
+      if (!u || !p) return showToast('Username dan Password wajib diisi', true);
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: u, credential: p })
+        });
+        const data = await res.json();
+        if (data.success && data.user.role === 'ADMIN') {
+          document.getElementById('adminLock').style.display = 'none';
+          loadAllData();
+          showToast('Selamat datang, ' + data.user.name);
+        } else {
+          showToast('Akses Ditolak: Membutuhkan kredensial akun Admin/Owner', true);
+        }
+      } catch (e) {
+        showToast('Gagal terhubung ke server lokal POS', true);
+      }
+    }
+
+    // 2. Navigasi Tab
+    function showTab(tabId, btn) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      
+      if (btn) {
+        btn.classList.add('active');
+      } else if (window.event && window.event.target) {
+        window.event.target.classList.add('active');
+      }
+
+      if (tabId === 'tabEod') loadEODData();
+      if (tabId === 'tabFin') loadFinancials();
+      if (tabId === 'tabProd') loadProducts();
+      if (tabId === 'tabEmp') { loadEmployees(); loadReturnsHistory(); }
+    }
+
+    // 3. Muat Data Finansial
+    async function loadFinancials() {
+      try {
+        const res = await fetch('/api/admin/financials');
+        const data = await res.json();
+        
+        document.getElementById('todayGross').innerText = formatRp(data.today.gross_sales);
+        document.getElementById('todayCogs').innerText = formatRp(data.today.reorder_fund);
+        document.getElementById('todayProfit').innerText = formatRp(data.today.net_profit);
+        document.getElementById('todayReceipts').innerText = `${data.today.receipt_count} transaksi selesai hari ini`;
+
+        const margin = data.today.gross_sales > 0 
+          ? ((data.today.net_profit / data.today.gross_sales) * 100).toFixed(1) 
+          : 0;
+        document.getElementById('todayMargin').innerText = `Margin Bersih: ${margin}%`;
+
+        const tbody = document.getElementById('salesTableBody');
+        if (data.recentSales && data.recentSales.length > 0) {
+          tbody.innerHTML = data.recentSales.map(s => `
+            <tr>
+              <td><strong>${s.receipt_no}</strong></td>
+              <td><strong>${s.cashier_name}</strong>${s.cashier_username ? `<br><small style="color:#64748b;">ID: #${s.cashier_id} (@${s.cashier_username})</small>` : ''}</td>
+              <td>${new Date(s.created_at).toLocaleTimeString('id-ID')}</td>
+              <td>${formatRp(s.total_gross)}</td>
+              <td style="color: var(--warning); font-weight:600;">${formatRp(s.total_cogs)}</td>
+              <td style="color: var(--success); font-weight: bold;">${formatRp(s.total_profit)}</td>
+              <td>${s.payment_method}</td>
+            </tr>
+          `).join('');
+        } else {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#94a3b8;">Belum ada riwayat transaksi penjualan hari ini.</td></tr>';
+        }
+      } catch (err) {
+        console.error('Gagal memuat finansial:', err);
+      }
+    }
+
+    // 4. Hitung & Simpan Rekap Tutup Buku (EOD)
+    async function loadEODData() {
+      try {
+        const res = await fetch('/api/admin/eod-preview');
+        eodData = await res.json();
+
+        document.getElementById('eodCashSales').value = formatRp(eodData.summary.cash_sales);
+        document.getElementById('envCogs').innerText = formatRp(eodData.summary.total_cogs);
+        document.getElementById('envProfit').innerText = formatRp(eodData.summary.total_profit);
+        calculateEOD();
+
+        const tbody = document.getElementById('eodTableBody');
+        if (eodData.pastReports && eodData.pastReports.length > 0) {
+          tbody.innerHTML = eodData.pastReports.map(r => `
+            <tr>
+              <td><strong>${r.report_date}</strong></td>
+              <td>${formatRp(r.opening_float)}</td>
+              <td>${formatRp(r.cash_sales)}</td>
+              <td><strong>${formatRp(r.actual_cash_counted)}</strong></td>
+              <td style="font-weight:bold; color:${r.discrepancy < 0 ? 'var(--danger)' : (r.discrepancy > 0 ? 'var(--accent)' : 'var(--success)')};">
+                ${r.discrepancy > 0 ? '+' : ''}${formatRp(r.discrepancy)}
+              </td>
+              <td style="color:var(--warning); font-weight:bold;">${formatRp(r.reorder_fund)}</td>
+              <td style="color:var(--success); font-weight:bold;">${formatRp(r.net_profit)}</td>
+              <td>${r.closed_by}</td>
+            </tr>
+          `).join('');
+        } else {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#94a3b8;">Belum ada riwayat rekap kas harian.</td></tr>';
+        }
+      } catch (err) {
+        console.error('Gagal memuat data EOD:', err);
+      }
+    }
+
+    function calculateEOD() {
+      if (!eodData) return;
+      const floatVal = parseFloat(document.getElementById('eodFloat').value) || 0;
+      const cashSales = eodData.summary.cash_sales;
+      const expected = floatVal + cashSales;
+      document.getElementById('eodExpected').value = formatRp(expected);
+
+      const countedInput = document.getElementById('eodCounted').value;
+      const discBox = document.getElementById('discrepancyBox');
+
+      if (countedInput === '') {
+        discBox.style.display = 'none';
+        return;
+      }
+
+      const countedVal = parseFloat(countedInput) || 0;
+      const diff = countedVal - expected;
+      discBox.style.display = 'block';
+
+      if (Math.abs(diff) < 1) {
+        discBox.style.background = '#dcfce7';
+        discBox.style.color = '#15803d';
+        discBox.innerText = '✔ Kas Sesuai / Balance Sempurna (Tidak Ada Selisih)';
+      } else if (diff < 0) {
+        discBox.style.background = '#fee2e2';
+        discBox.style.color = '#991b1b';
+        discBox.innerText = `⚠ Kas Kurang (Minus): Laci kas kurang ${formatRp(Math.abs(diff))}`;
+      } else {
+        discBox.style.background = '#dbeafe';
+        discBox.style.color = '#1e40af';
+        discBox.innerText = `ⓘ Kas Lebih (Surplus): Laci kas berlebih ${formatRp(diff)}`;
+      }
+    }
+
+    // FUNGSI SIMPAN REKAP EOD YANG SESUAI DENGAN ELEMEN TAB 2
+    async function submitEOD() {
+      if (!eodData) {
+        showToast('Data ringkasan kas belum termuat', true);
+        return;
+      }
+
+      const floatVal = parseFloat(document.getElementById('eodFloat').value) || 0;
+      const cashSales = eodData.summary ? (eodData.summary.cash_sales || 0) : 0;
+      const expected = floatVal + cashSales;
+      const countedInput = document.getElementById('eodCounted').value;
+
+      if (countedInput === '') {
+        showToast('Harap hitung dan masukkan nominal uang fisik di laci!', true);
+        document.getElementById('eodCounted').focus();
+        return;
+      }
+
+      const countedVal = parseFloat(countedInput) || 0;
+      const discrepancy = countedVal - expected;
+      const reorderFund = eodData.summary ? (eodData.summary.total_cogs || 0) : 0;
+      const netProfit = eodData.summary ? (eodData.summary.total_profit || 0) : 0;
+      const reportDate = new Date().toISOString().split('T')[0];
+      const closedBy = 'Admin / Pemilik Toko';
+
+      try {
+        const res = await fetch('/api/admin/eod-close', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            report_date: reportDate,
+            opening_float: floatVal,
+            cash_sales: cashSales,
+            expected_cash: expected,
+            actual_cash_counted: countedVal,
+            discrepancy: discrepancy,
+            reorder_fund: reorderFund,
+            net_profit: netProfit,
+            closed_by: closedBy
+          })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          showToast('✔ Rekap kas harian berhasil disimpan!');
+          loadEODData();
+          loadFinancials();
+        } else {
+          showToast('Gagal: ' + data.error, true);
+        }
+      } catch (err) {
+        showToast('Gagal terhubung ke server untuk menyimpan rekap', true);
+      }
+    }
+    // Alias untuk mencegah error pemanggilan
+    window.submitEodClose = submitEOD;
+
+    // 5. Cadangkan Database
+    async function executeBackup() {
+      const statusEl = document.getElementById('backupStatus');
+      statusEl.innerText = 'Sedang membuat salinan database yang aman...';
+      try {
+        const res = await fetch('/api/admin/backup', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          statusEl.innerText = `✔ Cadangan berhasil disimpan: ${data.filename} (${(data.sizeBytes / 1024).toFixed(1)} KB)`;
+          showToast('Database berhasil dicadangkan!');
+        } else {
+          statusEl.innerText = 'Gagal membuat cadangan: ' + data.error;
+          showToast('Cadangan gagal: ' + data.error, true);
+        }
+      } catch (e) {
+        statusEl.innerText = 'Server tidak merespons';
+        showToast('Gagal terhubung ke server', true);
+      }
+    }
+
+    // 6. Kelola Produk & Stok
+    async function loadProducts() {
+      try {
+        const res = await fetch('/api/products');
+        allProducts = await res.json();
+        renderAdminProducts(allProducts);
+      } catch (err) {
+        console.error('Gagal memuat produk:', err);
+      }
+    }
+
+    function renderAdminProducts(list) {
+      const tbody = document.getElementById('productsTableBody');
+      if (!list || list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; color:#94a3b8;">Tidak ada data produk ditemukan.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = list.map(p => {
+        const isLow = p.stock_qty <= (p.min_stock_alert || 5);
+        return `
+          <tr>
+            <td>
+              <strong>${p.name}</strong><br>
+              <small style="color:#64748b;">${p.barcode ? 'Barcode: ' + p.barcode : 'Tanpa Barcode'}</small>
+            </td>
+            <td><span style="background: #f1f5f9; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">${p.category || 'Umum'}</span></td>
+            <td>${p.unit}</td>
+            <td class="cost-highlight">${formatRp(p.cost_price)}</td>
+            <td><strong>${formatRp(p.sell_price)}</strong></td>
+            <td>${p.tier1_price ? formatRp(p.tier1_price) : '-'}</td>
+            <td>${p.tier2_price ? formatRp(p.tier2_price) : '-'}</td>
+            <td>${p.tier3_price ? formatRp(p.tier3_price) : '-'}</td>
+            <td>
+              <strong>${p.stock_qty}</strong>
+              ${isLow ? `<span style="background: #fee2e2; color: #991b1b; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 4px;">MENIPIS</span>` : ''}
+            </td>
+            <td style="white-space: nowrap;">
+              <button onclick="openEditModal(${p.id})" style="font-size: 11px; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); background: white; cursor: pointer;">✏️ Ubah</button>
+              <button onclick="openAdjustModal(${p.id})" style="font-size: 11px; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); background: #f8fafc; cursor: pointer;">📦 Stok</button>
+              <button onclick="openReturnModal(${p.id})" style="font-size: 11px; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--danger); background: #fef2f2; color: var(--danger); font-weight: 600; cursor: pointer;">↩️ Retur</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function filterAdminProducts() {
+      const query = document.getElementById('adminSearchInput').value.toLowerCase().trim();
+      const filtered = allProducts.filter(p => 
+        p.name.toLowerCase().includes(query) || 
+        (p.category && p.category.toLowerCase().includes(query)) ||
+        (p.barcode && p.barcode.includes(query))
+      );
+      renderAdminProducts(filtered);
+    }
+
+    async function saveProduct(e) {
+      e.preventDefault();
+      const payload = {
+        barcode: document.getElementById('pBarcode').value.trim(),
+        name: document.getElementById('pName').value.trim(),
+        category: document.getElementById('pCategory').value.trim(),
+        unit: document.getElementById('pUnit').value.trim(),
+        cost_price: parseFloat(document.getElementById('pCost').value) || 0,
+        sell_price: parseFloat(document.getElementById('pSell').value) || 0,
+        tier1_price: parseFloat(document.getElementById('pT1').value) || null,
+        tier2_price: parseFloat(document.getElementById('pT2').value) || null,
+        tier3_price: parseFloat(document.getElementById('pT3').value) || null,
+        stock_qty: parseInt(document.getElementById('pStock').value) || 0
+      };
+
+      try {
+        const res = await fetch('/api/admin/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Barang baru berhasil ditambahkan ke katalog!');
+          document.getElementById('productForm').reset();
+          loadProducts();
+          document.getElementById('pBarcode').focus();
+        } else {
+          showToast('Gagal menambah barang: ' + data.error, true);
+        }
+      } catch (err) {
+        showToast('Gagal terhubung ke server', true);
+      }
+    }
+
+    function openEditModal(productId) {
+      const p = allProducts.find(x => x.id === productId);
+      if (!p) return;
+
+      document.getElementById('editPId').value = p.id;
+      document.getElementById('editPName').value = p.name;
+      document.getElementById('editPBarcode').value = p.barcode || '';
+      document.getElementById('editPCategory').value = p.category || 'Umum';
+      document.getElementById('editPUnit').value = p.unit;
+      document.getElementById('editPMinAlert').value = p.min_stock_alert || 5;
+      document.getElementById('editPCost').value = p.cost_price;
+      document.getElementById('editPSell').value = p.sell_price;
+      document.getElementById('editPT1').value = p.tier1_price || '';
+      document.getElementById('editPT2').value = p.tier2_price || '';
+      document.getElementById('editPT3').value = p.tier3_price || '';
+
+      document.getElementById('editProductModal').style.display = 'flex';
+      setTimeout(() => document.getElementById('editPName').focus(), 50);
+    }
+
+    function closeEditModal() {
+      document.getElementById('editProductModal').style.display = 'none';
+    }
+
+    async function submitEditProduct() {
+      const id = document.getElementById('editPId').value;
+      const payload = {
+        name: document.getElementById('editPName').value.trim(),
+        barcode: document.getElementById('editPBarcode').value.trim(),
+        category: document.getElementById('editPCategory').value.trim(),
+        unit: document.getElementById('editPUnit').value.trim(),
+        min_stock_alert: parseInt(document.getElementById('editPMinAlert').value) || 5,
+        cost_price: parseFloat(document.getElementById('editPCost').value) || 0,
+        sell_price: parseFloat(document.getElementById('editPSell').value) || 0,
+        tier1_price: parseFloat(document.getElementById('editPT1').value) || null,
+        tier2_price: parseFloat(document.getElementById('editPT2').value) || null,
+        tier3_price: parseFloat(document.getElementById('editPT3').value) || null
+      };
+
+      try {
+        const res = await fetch(`/api/admin/products/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Data barang berhasil diperbarui!');
+          closeEditModal();
+          loadProducts();
+        } else {
+          showToast('Gagal memperbarui barang: ' + data.error, true);
+        }
+      } catch (err) {
+        showToast('Gagal terhubung ke server', true);
+      }
+    }
+
+    function openAdjustModal(productId) {
+      const p = allProducts.find(x => x.id === productId);
+      if (!p) return;
+
+      document.getElementById('adjustPId').value = p.id;
+      document.getElementById('adjustTitle').innerText = `Sesuaikan Stok: ${p.name}`;
+      document.getElementById('adjustCurrentStock').innerText = `Stok Saat Ini: ${p.stock_qty} ${p.unit}`;
+      document.getElementById('adjustQty').value = '';
+      document.getElementById('adjustType').value = 'RESTOCK';
+      updateAdjustPlaceholder();
+
+      document.getElementById('adjustStockModal').style.display = 'flex';
+      setTimeout(() => document.getElementById('adjustQty').focus(), 50);
+    }
+
+    function closeAdjustModal() {
+      document.getElementById('adjustStockModal').style.display = 'none';
+    }
+
+    function updateAdjustPlaceholder() {
+      const type = document.getElementById('adjustType').value;
+      const label = document.getElementById('adjustQtyLabel');
+      if (type === 'RESTOCK') label.innerText = 'Jumlah Barang Masuk (+):';
+      else if (type === 'SPOILAGE') label.innerText = 'Jumlah Rusak/Kadaluarsa (-):';
+      else label.innerText = 'Koreksi Jumlah Bersih (+/-):';
+    }
+
+    async function submitStockAdjustment() {
+      const id = document.getElementById('adjustPId').value;
+      const type = document.getElementById('adjustType').value;
+      const qtyInput = parseFloat(document.getElementById('adjustQty').value);
+
+      if (isNaN(qtyInput) || qtyInput === 0) {
+        showToast('Masukkan jumlah yang valid', true);
+        document.getElementById('adjustQty').focus();
+        return;
+      }
+
+      const finalDelta = (type === 'SPOILAGE') ? -Math.abs(qtyInput) : qtyInput;
+
+      try {
+        const res = await fetch(`/api/admin/products/${id}/adjust-stock`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adjustmentQty: finalDelta, reason: type })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Stok barang berhasil disesuaikan!');
+          closeAdjustModal();
+          loadProducts();
+        } else {
+          showToast('Penyesuaian stok gagal: ' + data.error, true);
+        }
+      } catch (err) {
+        showToast('Gagal terhubung ke server', true);
+      }
+    }
+
+    // 7. Retur Barang
+    function openReturnModal(productId) {
+      const p = allProducts.find(x => x.id === productId);
+      if (!p) return;
+
+      document.getElementById('returnProductId').value = p.id;
+      document.getElementById('returnProductInfo').innerHTML = `
+        Barang: <strong>${p.name}</strong><br>
+        Stok Tersedia Saat Ini: <span style="font-weight:bold; color:var(--accent);">${p.stock_qty} ${p.unit}</span>
+      `;
+      document.getElementById('returnQty').value = '';
+      document.getElementById('returnQty').max = p.stock_qty;
+      document.getElementById('returnNotes').value = '';
+      document.getElementById('returnReason').selectedIndex = 0;
+
+      document.getElementById('returnProductModal').style.display = 'flex';
+      setTimeout(() => document.getElementById('returnQty').focus(), 50);
+    }
+
+    function closeReturnModal() {
+      document.getElementById('returnProductModal').style.display = 'none';
+    }
+
+    async function submitProductReturn() {
+      const productId = parseInt(document.getElementById('returnProductId').value, 10);
+      const qty = parseInt(document.getElementById('returnQty').value, 10);
+      const reason = document.getElementById('returnReason').value;
+      const notes = document.getElementById('returnNotes').value.trim();
+
+      if (isNaN(qty) || qty <= 0) {
+        showToast('Harap masukkan jumlah retur yang valid.', true);
+        document.getElementById('returnQty').focus();
+        return;
+      }
+
+      const p = allProducts.find(x => x.id === productId);
+      if (p && qty > p.stock_qty) {
+        showToast(`Jumlah retur (${qty}) melebihi stok yang tersedia (${p.stock_qty}).`, true);
+        return;
+      }
+
+      const payload = {
+        productId,
+        quantity: qty,
+        reason,
+        notes,
+        returnedBy: 'Pemilik Toko'
+      };
+
+      try {
+        const res = await fetch('/api/admin/returns', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          showToast(`Retur berhasil dicatat! Sisa stok ${data.name}: ${data.remainingStock}`);
+          closeReturnModal();
+          loadProducts();
+          loadReturnsHistory();
+        } else {
+          showToast('Gagal memproses retur: ' + data.error, true);
+        }
+      } catch (err) {
+        showToast('Terjadi kesalahan jaringan/server.', true);
+      }
+    }
+
+    async function loadReturnsHistory() {
+      try {
+        const res = await fetch('/api/admin/returns');
+        const list = await res.json();
+        const tbody = document.getElementById('returnsTableBody');
+
+        if (!list || list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#94a3b8;">Belum ada riwayat retur barang.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = list.map(r => `
+          <tr>
+            <td>${new Date(r.created_at).toLocaleString('id-ID')}</td>
+            <td><strong>${r.product_name}</strong></td>
+            <td style="color:var(--danger); font-weight:bold;">-${r.quantity} ${r.unit}</td>
+            <td><span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600;">${r.reason}</span></td>
+            <td>${r.notes || '-'}</td>
+            <td>${r.returned_by}</td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('Gagal memuat riwayat retur:', err);
+      }
+    }
+
+    // 8. Kalkulator Pecah Karung / Dus
+    function normalizeUnit(quantity, unit) {
+      switch (unit) {
+        case 'kg': return quantity * 1000;
+        case 'g': return quantity;
+        case 'L': return quantity * 1000;
+        case 'ml': return quantity;
+        default: return quantity;
+      }
+    }
+
+    function openBulkCalcModal(targetCostInputId, targetStockInputId = null) {
+      document.getElementById('calcTargetCostInput').value = targetCostInputId;
+      document.getElementById('calcTargetStockInput').value = targetStockInputId || '';
+      
+      document.getElementById('calcBulkCost').value = '';
+      document.getElementById('calcBulkQty').value = '';
+      document.getElementById('calcRetailQty').value = '1';
+      document.getElementById('calcBulkSacksCount').value = '1';
+      document.getElementById('calcYieldDisplay').innerText = '0 bungkus';
+      document.getElementById('calcUnitCostDisplay').innerText = 'Rp 0';
+      
+      calculatedUnitCost = 0;
+      calculatedTotalStockPacks = 0;
+
+      document.getElementById('bulkCalcModal').style.display = 'flex';
+      setTimeout(() => document.getElementById('calcBulkCost').focus(), 50);
+    }
+
+    function closeBulkCalcModal() {
+      document.getElementById('bulkCalcModal').style.display = 'none';
+    }
+
+    function runBulkCalc() {
+      const bulkPrice = parseFloat(document.getElementById('calcBulkCost').value) || 0;
+      const bulkQty = parseFloat(document.getElementById('calcBulkQty').value) || 0;
+      const bulkUnit = document.getElementById('calcBulkUnit').value;
+
+      const retailQty = parseFloat(document.getElementById('calcRetailQty').value) || 0;
+      const retailUnit = document.getElementById('calcRetailUnit').value;
+
+      const sacksCount = parseInt(document.getElementById('calcBulkSacksCount').value) || 1;
+
+      if (bulkPrice <= 0 || bulkQty <= 0 || retailQty <= 0) {
+        document.getElementById('calcYieldDisplay').innerText = '0 bungkus';
+        document.getElementById('calcUnitCostDisplay').innerText = 'Rp 0';
+        calculatedUnitCost = 0;
+        calculatedTotalStockPacks = 0;
+        return;
+      }
+
+      const isWeight = ['kg', 'g'].includes(bulkUnit) && ['kg', 'g'].includes(retailUnit);
+      const isVolume = ['L', 'ml'].includes(bulkUnit) && ['L', 'ml'].includes(retailUnit);
+      const isCount = bulkUnit === 'pcs' && retailUnit === 'pcs';
+
+      if (!isWeight && !isVolume && !isCount) {
+        document.getElementById('calcYieldDisplay').innerText = 'Satuan tidak cocok!';
+        document.getElementById('calcUnitCostDisplay').innerText = 'Error';
+        return;
+      }
+
+      const baseBulk = normalizeUnit(bulkQty, bulkUnit);
+      const baseRetail = normalizeUnit(retailQty, retailUnit);
+      const packsPerBulk = baseBulk / baseRetail;
+
+      calculatedUnitCost = bulkPrice / packsPerBulk;
+      calculatedTotalStockPacks = Math.floor(packsPerBulk * sacksCount);
+
+      document.getElementById('calcYieldDisplay').innerText = 
+        `${packsPerBulk.toFixed(packsPerBulk % 1 === 0 ? 0 : 2)} bungkus per sak/dus (${calculatedTotalStockPacks} total dari ${sacksCount} dus/sak)`;
+
+      document.getElementById('calcUnitCostDisplay').innerText = formatRp(calculatedUnitCost);
+    }
+
+    function applyBulkCalc() {
+      if (calculatedUnitCost <= 0) {
+        showToast('Silakan masukkan harga kulakan dan ukuran yang valid terlebih dahulu.', true);
+        return;
+      }
+
+      const costInputId = document.getElementById('calcTargetCostInput').value;
+      const stockInputId = document.getElementById('calcTargetStockInput').value;
+
+      if (costInputId) {
+        document.getElementById(costInputId).value = Math.round(calculatedUnitCost);
+      }
+
+      if (stockInputId && document.getElementById('calcAutoFillStock').checked) {
+        document.getElementById(stockInputId).value = calculatedTotalStockPacks;
+      }
+
+      closeBulkCalcModal();
+      showToast('Harga HPP hasil hitungan berhasil dipasang ke form!');
+    }
+
+    // 9. Kelola Akun Karyawan
+    async function loadEmployees() {
+      try {
+        const res = await fetch('/api/admin/employees');
+        const list = await res.json();
+        const tbody = document.getElementById('empTableBody');
+        if (!list || list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#94a3b8;">Belum ada akun karyawan terdaftar.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = list.map(e => `
+          <tr>
+            <td>${e.id}</td>
+            <td><strong>${e.name}</strong></td>
+            <td><code>${e.username}</code></td>
+            <td><span style="font-size:11px; font-weight:bold; padding:2px 6px; border-radius:4px; ${e.role === 'ADMIN' ? 'background:#fee2e2; color:#991b1b;' : 'background:#dbeafe; color:#1e40af;'}">${e.role === 'ADMIN' ? 'ADMIN' : 'KASIR'}</span></td>
+            <td>${e.pin ? 'Aktif' : 'Tidak Ada'}</td>
+            <td>${new Date(e.created_at).toLocaleDateString('id-ID')}</td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('Gagal memuat karyawan:', err);
+      }
+    }
+
+    async function saveEmployee(e) {
+      e.preventDefault();
+      const payload = {
+        name: document.getElementById('eName').value.trim(),
+        username: document.getElementById('eUser').value.trim(),
+        password: document.getElementById('ePass').value.trim(),
+        pin: document.getElementById('ePin').value.trim(),
+        role: document.getElementById('eRole').value
+      };
+
+      try {
+        const res = await fetch('/api/admin/employees', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Akun staf berhasil dibuat!');
+          document.getElementById('empForm').reset();
+          loadEmployees();
+          document.getElementById('eName').focus();
+        } else {
+          showToast('Gagal membuat akun: ' + data.error, true);
+        }
+      } catch (err) {
+        showToast('Gagal terhubung ke server', true);
+      }
+    }
+
+    function loadAllData() {
+      loadFinancials();
+      loadProducts();
+      loadEmployees();
+      loadReturnsHistory();
+    }
+
+    // Fokus awal saat halaman dimuat
+    document.getElementById('verifyUser').focus();
+  </script>
+</body>
+</html>

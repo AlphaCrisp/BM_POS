@@ -1,0 +1,43 @@
+{
+  "name": "pos-toko-bahan-kue",
+  "version": "1.0.2",
+  "description": "Sistem POS Kasir Offline Toko Bahan Kue",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "rebuild": "electron-rebuild -f -w better-sqlite3",
+    "dist": "electron-builder --win"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.7.1",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.tokobahankue.pos",
+    "productName": "Kasir Toko Bahan Kue",
+    "win": {
+      "target": "nsis",
+      "icon": "pos-icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Kasir Bahan Kue"
+    },
+    "files": [
+      "**/*",
+      "!backups/**",
+      "!*.bat"
+    ],
+    "asarUnpack": [
+      "**/node_modules/better-sqlite3/**"
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+# Node dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Electron build outputs & installers
+dist/
+build/
+
+# Local SQLite databases & temp journal files (optional: keep if you want an empty template db)
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Saved PDF receipts generated during testing
+*.pdf
+
+# Environment variables & editor folders
+.env
+.vscode/
+.idea/
