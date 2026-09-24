@@ -6,7 +6,8 @@
   "scripts": {
     "start": "electron .",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
-    "dist": "electron-builder --win"
+    "dist": "electron-builder --win",
+    "seed": "node seed.js"
   },
   "dependencies": {
     "better-sqlite3": "^11.8.1",
